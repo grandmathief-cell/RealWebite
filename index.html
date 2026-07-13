@@ -128,44 +128,13 @@
             );
         }
 
-        /* Thick, glossy, premium liquid drops */
-        .falling-drip {
+        /* Canvas for custom drop rendering */
+        #dropCanvas {
             position: fixed;
-            width: 28px;
-            height: 38px;
+            top: 0;
+            left: 0;
             z-index: 2;
-            animation: dropFall 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
-        }
-
-        .falling-drip::before {
-            content: '';
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            background: 
-                radial-gradient(ellipse 60% 40% at 40% 15%, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.95) 15%, transparent 60%),
-                radial-gradient(ellipse at 50% 50%, rgba(255, 255, 255, 0.85) 0%, rgba(240, 245, 255, 0.7) 50%, rgba(200, 220, 255, 0.6) 100%);
-            border-radius: 50% 50% 50% 45%;
-            box-shadow: 
-                0 6px 16px rgba(0, 0, 0, 0.9),
-                0 2px 6px rgba(0, 0, 0, 0.6),
-                inset -2px -4px 8px rgba(0, 0, 0, 0.1),
-                inset 3px 2px 6px rgba(255, 255, 255, 0.9);
-            filter: blur(0.2px);
-        }
-
-        @keyframes dropFall {
-            0% {
-                transform: translateY(0) rotateZ(-12deg) scale(1);
-                opacity: 1;
-            }
-            90% {
-                opacity: 1;
-            }
-            100% {
-                transform: translateY(220px) rotateZ(-12deg) scale(0.95);
-                opacity: 0;
-            }
+            pointer-events: none;
         }
 
         /* Header */
@@ -461,8 +430,8 @@
     <!-- Alternative music source with better compatibility -->
     <iframe id="musicIframe" style="display: none;" width="0" height="0" src="about:blank"></iframe>
 
-    <!-- Falling elements -->
-    <div class="falling-container" id="fallingContainer"></div>
+    <!-- Canvas for drop rendering -->
+    <canvas id="dropCanvas"></canvas>
 
     <div class="chat-window">
         <!-- Thick organic liquid splatters -->
@@ -596,21 +565,30 @@
 
         const bgMusic = document.getElementById('bgMusic');
         const chatWindow = document.querySelector('.chat-window');
+        const canvas = document.getElementById('dropCanvas');
+        const ctx = canvas.getContext('2d');
         const fallingContainer = document.getElementById('fallingContainer');
+
+        // Setup canvas
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
 
         // Create synthesized ambient music
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
         let musicOscillators = [];
 
         function createAmbientMusic() {
-            // Stop previous oscillators
             musicOscillators.forEach(osc => {
                 try { osc.stop(); } catch (e) {}
             });
             musicOscillators = [];
 
             const now = audioContext.currentTime;
-            const notes = [130.81, 164.81, 196.00, 246.94]; // C3, E3, G3, B3 - relaxing harmony
+            const notes = [130.81, 164.81, 196.00, 246.94];
             const bpm = 60;
             const beatDuration = (60 / bpm) * 4;
 
@@ -633,7 +611,6 @@
                 musicOscillators.push(osc);
             });
 
-            // Loop the music
             setTimeout(() => {
                 if (document.hasFocus()) {
                     createAmbientMusic();
@@ -643,7 +620,6 @@
             }, beatDuration * 1000);
         }
 
-        // Start music immediately
         const startMusicNow = () => {
             if (audioContext.state === 'suspended') {
                 audioContext.resume().then(() => {
@@ -654,10 +630,8 @@
             }
         };
 
-        // Start on load
         setTimeout(startMusicNow, 300);
 
-        // Resume on interaction
         const resumeAudio = () => {
             if (audioContext.state === 'suspended') {
                 audioContext.resume().then(() => {
@@ -671,49 +645,104 @@
         document.addEventListener('click', resumeAudio);
         document.addEventListener('keypress', resumeAudio);
 
-        // Create realistic water drops
-        function createDrip() {
-            const drip = document.createElement('div');
-            drip.className = 'falling-drip';
+        // Store active drops
+        let activeDrops = [];
+
+        // Draw drop using canvas
+        function drawDrop(x, y, progress) {
+            const size = 28;
+            const height = 38;
             
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(-0.2); // Slight rotation
+            
+            // Main drop body with gradient
+            const gradient = ctx.createRadialGradient(0, -8, 2, 0, 8, 20);
+            gradient.addColorStop(0, `rgba(255, 255, 255, ${0.95 * (1 - progress * 0.15)})`);
+            gradient.addColorStop(0.3, `rgba(255, 255, 255, ${0.85 * (1 - progress * 0.15)})`);
+            gradient.addColorStop(0.7, `rgba(220, 235, 255, ${0.7 * (1 - progress * 0.15)})`);
+            gradient.addColorStop(1, `rgba(180, 210, 255, ${0.5 * (1 - progress * 0.15)})`);
+            
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, size / 2, height / 2, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Specular highlight
+            ctx.fillStyle = `rgba(255, 255, 255, ${0.7 * (1 - progress * 0.2)})`;
+            ctx.beginPath();
+            ctx.ellipse(-6, -10, 6, 5, -0.3, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Secondary highlight for glossiness
+            ctx.fillStyle = `rgba(255, 255, 255, ${0.4 * (1 - progress * 0.2)})`;
+            ctx.beginPath();
+            ctx.ellipse(3, -5, 4, 3, 0.3, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Shadow/depth at bottom
+            ctx.fillStyle = `rgba(0, 0, 0, ${0.15 * (1 - progress * 0.1)})`;
+            ctx.beginPath();
+            ctx.ellipse(2, 12, 8, 4, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Drop shadow
+            ctx.shadowColor = `rgba(0, 0, 0, ${0.6 * (1 - progress * 0.15)})`;
+            ctx.shadowBlur = 8;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 4;
+            
+            ctx.restore();
+        }
+
+        // Animation loop
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Update and draw drops
+            activeDrops = activeDrops.filter(drop => {
+                drop.elapsed += 16; // ~60fps
+                const progress = drop.elapsed / drop.duration;
+                
+                if (progress >= 1) {
+                    return false;
+                }
+                
+                // Calculate position with gravity
+                const startY = drop.startY;
+                const dropDistance = 220;
+                const y = startY + (dropDistance * progress);
+                
+                drawDrop(drop.x, y, progress);
+                return true;
+            });
+            
+            requestAnimationFrame(animate);
+        }
+        animate();
+
+        // Create drops
+        function createDrip() {
             const chatRect = chatWindow.getBoundingClientRect();
             
             const edges = [
-                { 
-                    name: 'top', 
-                    x: () => chatRect.left + 60 + Math.random() * (chatRect.width - 120), 
-                    y: () => chatRect.top - 40 
-                },
-                { 
-                    name: 'left', 
-                    x: () => chatRect.left - 40, 
-                    y: () => chatRect.top + 60 + Math.random() * (chatRect.height - 120) 
-                },
-                { 
-                    name: 'right', 
-                    x: () => chatRect.right + 16, 
-                    y: () => chatRect.top + 60 + Math.random() * (chatRect.height - 120) 
-                },
-                { 
-                    name: 'bottom', 
-                    x: () => chatRect.left + 60 + Math.random() * (chatRect.width - 120), 
-                    y: () => chatRect.bottom + 8 
-                }
+                { x: chatRect.left + 60 + Math.random() * (chatRect.width - 120), y: chatRect.top - 40 },
+                { x: chatRect.left - 40, y: chatRect.top + 60 + Math.random() * (chatRect.height - 120) },
+                { x: chatRect.right + 16, y: chatRect.top + 60 + Math.random() * (chatRect.height - 120) },
+                { x: chatRect.left + 60 + Math.random() * (chatRect.width - 120), y: chatRect.bottom + 8 }
             ];
             
             const edge = edges[Math.floor(Math.random() * edges.length)];
-            const x = edge.x();
-            const y = edge.y();
             
-            drip.style.left = x + 'px';
-            drip.style.top = y + 'px';
-            
-            const duration = 1.0 + Math.random() * 0.5;
-            drip.style.animationDuration = duration + 's';
-            
-            fallingContainer.appendChild(drip);
+            activeDrops.push({
+                x: edge.x,
+                startY: edge.y,
+                elapsed: 0,
+                duration: 1200 + Math.random() * 400
+            });
 
-            // Play drip sound using Web Audio API
+            // Play drip sound
             try {
                 const dropOsc = audioContext.createOscillator();
                 const dropGain = audioContext.createGain();
@@ -731,13 +760,8 @@
                 dropOsc.start(audioContext.currentTime);
                 dropOsc.stop(audioContext.currentTime + 0.1);
             } catch (e) {}
-            
-            setTimeout(() => {
-                drip.remove();
-            }, duration * 1000);
         }
 
-        // Create drips at organic intervals
         function scheduleDrips() {
             createDrip();
             const nextInterval = 1200 + Math.random() * 1800;
@@ -768,7 +792,6 @@
             }, (duration + 3) * 1000);
         }
 
-        // Create falling elements
         setInterval(createFallingElement, 500);
     </script>
 
