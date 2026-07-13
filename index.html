@@ -61,6 +61,45 @@
                 linear-gradient(135deg, #1a0f0f 0%, #0d0d0d 50%, #000000 100%),
                 url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><defs><filter id="grunge"><feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="6" result="noise" /></filter></defs><rect width="200" height="200" fill="%23ff1493" filter="url(%23grunge)" opacity="0.02"/></svg>');
             background-size: cover, cover;
+            overflow: hidden;
+        }
+
+        /* Liquid dripping effect - better version */
+        .drip-left,
+        .drip-right {
+            position: fixed;
+            top: 0;
+            width: 40px;
+            height: 100%;
+            z-index: 1;
+            overflow: visible;
+            pointer-events: none;
+        }
+
+        .drip-left {
+            left: 0;
+            background: linear-gradient(90deg, rgba(255, 255, 255, 0.6) 0%, transparent 100%);
+        }
+
+        .drip-right {
+            right: 0;
+            background: linear-gradient(-90deg, rgba(255, 255, 255, 0.6) 0%, transparent 100%);
+        }
+
+        .drip {
+            position: absolute;
+            width: 8px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50% 50% 50% 0;
+            animation: drip-fall linear infinite;
+        }
+
+        @keyframes drip-fall {
+            to {
+                transform: translateY(100vh);
+                opacity: 0;
+            }
         }
 
         /* Header */
@@ -305,6 +344,31 @@
             background: rgba(255, 20, 147, 0.5);
         }
 
+        /* Falling elements */
+        .falling-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .falling-element {
+            position: absolute;
+            font-size: 40px;
+            opacity: 0.7;
+            animation: fall linear forwards;
+        }
+
+        @keyframes fall {
+            to {
+                transform: translateY(100vh) rotate(360deg);
+            }
+        }
+
         /* Responsive */
         @media (max-width: 480px) {
             .chat-window {
@@ -323,6 +387,17 @@
     </style>
 </head>
 <body>
+    <!-- Background music -->
+    <audio id="bgMusic" loop volume="0.3">
+        <source src="https://assets.mixkit.co/active_storage/sfx/2445/2445-preview.mp3" type="audio/mpeg">
+    </audio>
+
+    <!-- Dripping liquid on sides -->
+    <div class="drip-left" id="dripLeft"></div>
+    <div class="drip-right" id="dripRight"></div>
+
+    <!-- Falling elements -->
+    <div class="falling-container" id="fallingContainer"></div>
 
     <div class="chat-window">
         <!-- Header -->
@@ -448,6 +523,76 @@
         });
 
         messageInput.focus();
+
+        // Dripping liquid setup
+        const dripLeft = document.getElementById('dripLeft');
+        const dripRight = document.getElementById('dripRight');
+
+        function createDrip(container) {
+            const drip = document.createElement('div');
+            drip.className = 'drip';
+            const randomX = Math.random() * 30;
+            const randomDuration = 2 + Math.random() * 2;
+            const randomDelay = Math.random() * 3;
+            
+            drip.style.left = randomX + 'px';
+            drip.style.animationDuration = randomDuration + 's';
+            drip.style.animationDelay = randomDelay + 's';
+            
+            container.appendChild(drip);
+            
+            setTimeout(() => drip.remove(), (randomDuration + randomDelay + 1) * 1000);
+        }
+
+        // Create drips continuously
+        setInterval(() => {
+            createDrip(dripLeft);
+            createDrip(dripRight);
+        }, 400);
+
+        // Rain animation setup
+        const fallingContainer = document.getElementById('fallingContainer');
+        const bgMusic = document.getElementById('bgMusic');
+
+        // Start background music on user interaction
+        document.addEventListener('click', () => {
+            if (bgMusic.paused) {
+                bgMusic.play().catch(() => {
+                    console.log('Audio autoplay blocked');
+                });
+            }
+        });
+
+        // Create falling elements
+        function createFallingElement() {
+            const element = document.createElement('img');
+            element.src = 'head.png';
+            element.className = 'falling-element';
+            element.style.width = '60px';
+            element.style.height = 'auto';
+            element.style.filter = 'drop-shadow(0 0 10px rgba(255, 20, 147, 0.8))';
+            
+            // Random horizontal position
+            const randomLeft = Math.random() * window.innerWidth;
+            element.style.left = randomLeft + 'px';
+            
+            // Random animation duration (4-10 seconds)
+            const duration = 4 + Math.random() * 6;
+            element.style.animationDuration = duration + 's';
+            
+            // Random delay
+            element.style.animationDelay = Math.random() * 3 + 's';
+            
+            fallingContainer.appendChild(element);
+            
+            // Remove element after animation completes
+            setTimeout(() => {
+                element.remove();
+            }, (duration + 3) * 1000);
+        }
+
+        // Create falling elements continuously
+        setInterval(createFallingElement, 500);
     </script>
 
 </body>
