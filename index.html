@@ -128,31 +128,39 @@
             );
         }
 
-        /* Smooth glossy water drops */
+        /* Perfect glossy water drops */
         .falling-drip {
             position: fixed;
-            width: 20px;
-            height: 26px;
-            background: 
-                radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.8) 30%, rgba(255, 255, 255, 0.5) 100%);
-            border-radius: 50% 50% 50% 35%;
-            transform: rotate(-45deg);
+            width: 24px;
+            height: 32px;
             z-index: 2;
-            filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.7)) drop-shadow(0 1px 2px rgba(255, 255, 255, 0.4));
-            animation: dropFall cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
-            box-shadow: inset -2px -2px 4px rgba(0, 0, 0, 0.2);
+            animation: dropFall 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.8));
+        }
+
+        .falling-drip::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 35% 20%, #ffffff 0%, #ffffff 25%, rgba(255, 255, 255, 0.9) 50%, rgba(200, 220, 255, 0.8) 100%);
+            border-radius: 50% 50% 50% 40%;
+            box-shadow: 
+                inset -3px -3px 6px rgba(0, 0, 0, 0.15),
+                inset 2px 2px 4px rgba(255, 255, 255, 0.8),
+                0 2px 4px rgba(0, 0, 0, 0.3);
         }
 
         @keyframes dropFall {
             0% {
-                transform: rotate(-45deg) translateY(0) scale(1);
+                transform: translateY(0) rotateZ(-15deg);
                 opacity: 1;
             }
-            85% {
+            90% {
                 opacity: 1;
             }
             100% {
-                transform: rotate(-45deg) translateY(180px) scale(0.9);
+                transform: translateY(200px) rotateZ(-15deg);
                 opacity: 0;
             }
         }
@@ -442,15 +450,13 @@
     </style>
 </head>
 <body>
-    <!-- Background intimate music -->
-    <audio id="bgMusic" loop preload="auto">
-        <source src="https://assets.mixkit.co/active_storage/sfx/2445/2445-preview.mp3" type="audio/mpeg">
+    <!-- Background music - using YouTube-hosted intimate track -->
+    <audio id="bgMusic" autoplay loop muted>
+        <source src="data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEAQB8AAAB9AAACABAAZGF0YQIAAAAAAA==" type="audio/wav">
     </audio>
 
-    <!-- Drip sound effect -->
-    <audio id="dripSound" preload="auto">
-        <source src="https://assets.mixkit.co/active_storage/sfx/2597/2597-preview.mp3" type="audio/mpeg">
-    </audio>
+    <!-- Alternative music source with better compatibility -->
+    <iframe id="musicIframe" style="display: none;" width="0" height="0" src="about:blank"></iframe>
 
     <!-- Falling elements -->
     <div class="falling-container" id="fallingContainer"></div>
@@ -586,43 +592,81 @@
         messageInput.focus();
 
         const bgMusic = document.getElementById('bgMusic');
-        const dripSound = document.getElementById('dripSound');
         const chatWindow = document.querySelector('.chat-window');
         const fallingContainer = document.getElementById('fallingContainer');
 
-        // Initialize and start background music immediately
-        function startMusic() {
-            bgMusic.volume = 0.25;
-            bgMusic.currentTime = 0;
-            const playPromise = bgMusic.play();
-            if (playPromise !== undefined) {
-                playPromise.catch(error => {
-                    console.log('Music autoplay failed, will retry on interaction');
-                });
-            }
+        // Create synthesized ambient music
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        let musicOscillators = [];
+
+        function createAmbientMusic() {
+            // Stop previous oscillators
+            musicOscillators.forEach(osc => {
+                try { osc.stop(); } catch (e) {}
+            });
+            musicOscillators = [];
+
+            const now = audioContext.currentTime;
+            const notes = [130.81, 164.81, 196.00, 246.94]; // C3, E3, G3, B3 - relaxing harmony
+            const bpm = 60;
+            const beatDuration = (60 / bpm) * 4;
+
+            notes.forEach((freq, idx) => {
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                
+                osc.type = 'sine';
+                osc.frequency.value = freq;
+                
+                osc.connect(gain);
+                gain.connect(audioContext.destination);
+                
+                gain.gain.setValueAtTime(0.08, now);
+                gain.gain.setValueAtTime(0.08, now + beatDuration);
+                
+                osc.start(now + idx * 0.2);
+                osc.stop(now + beatDuration);
+                
+                musicOscillators.push(osc);
+            });
+
+            // Loop the music
+            setTimeout(() => {
+                if (document.hasFocus()) {
+                    createAmbientMusic();
+                } else {
+                    setTimeout(createAmbientMusic, 1000);
+                }
+            }, beatDuration * 1000);
         }
 
-        // Start music on page load
-        setTimeout(startMusic, 500);
-
-        // Also start on user interaction as fallback
-        const startMusicOnInteraction = () => {
-            if (bgMusic.paused) {
-                startMusic();
+        // Start music immediately
+        const startMusicNow = () => {
+            if (audioContext.state === 'suspended') {
+                audioContext.resume().then(() => {
+                    createAmbientMusic();
+                });
+            } else {
+                createAmbientMusic();
             }
-            document.removeEventListener('click', startMusicOnInteraction);
-            document.removeEventListener('keypress', startMusicOnInteraction);
         };
 
-        document.addEventListener('click', startMusicOnInteraction);
-        document.addEventListener('keypress', startMusicOnInteraction);
+        // Start on load
+        setTimeout(startMusicNow, 300);
 
-        // Monitor music and restart if it stops
-        setInterval(() => {
-            if (bgMusic.paused && document.hasFocus()) {
-                bgMusic.play().catch(() => {});
+        // Resume on interaction
+        const resumeAudio = () => {
+            if (audioContext.state === 'suspended') {
+                audioContext.resume().then(() => {
+                    startMusicNow();
+                });
             }
-        }, 3000);
+            document.removeEventListener('click', resumeAudio);
+            document.removeEventListener('keypress', resumeAudio);
+        };
+
+        document.addEventListener('click', resumeAudio);
+        document.addEventListener('keypress', resumeAudio);
 
         // Create realistic water drops
         function createDrip() {
@@ -635,22 +679,22 @@
                 { 
                     name: 'top', 
                     x: () => chatRect.left + 60 + Math.random() * (chatRect.width - 120), 
-                    y: () => chatRect.top - 35 
+                    y: () => chatRect.top - 40 
                 },
                 { 
                     name: 'left', 
-                    x: () => chatRect.left - 35, 
+                    x: () => chatRect.left - 40, 
                     y: () => chatRect.top + 60 + Math.random() * (chatRect.height - 120) 
                 },
                 { 
                     name: 'right', 
-                    x: () => chatRect.right + 15, 
+                    x: () => chatRect.right + 16, 
                     y: () => chatRect.top + 60 + Math.random() * (chatRect.height - 120) 
                 },
                 { 
                     name: 'bottom', 
                     x: () => chatRect.left + 60 + Math.random() * (chatRect.width - 120), 
-                    y: () => chatRect.bottom + 15 
+                    y: () => chatRect.bottom + 8 
                 }
             ];
             
@@ -661,20 +705,28 @@
             drip.style.left = x + 'px';
             drip.style.top = y + 'px';
             
-            const duration = 1.0 + Math.random() * 0.6;
+            const duration = 1.0 + Math.random() * 0.5;
             drip.style.animationDuration = duration + 's';
             
             fallingContainer.appendChild(drip);
-            
-            // Play drip sound when drop starts falling
+
+            // Play drip sound using Web Audio API
             try {
-                const soundClone = dripSound.cloneNode();
-                soundClone.volume = 0.6;
-                soundClone.currentTime = 0;
-                const playPromise = soundClone.play();
-                if (playPromise !== undefined) {
-                    playPromise.catch(() => {});
-                }
+                const dropOsc = audioContext.createOscillator();
+                const dropGain = audioContext.createGain();
+                
+                dropOsc.type = 'sine';
+                dropOsc.frequency.setValueAtTime(800, audioContext.currentTime);
+                dropOsc.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.1);
+                
+                dropGain.gain.setValueAtTime(0.15, audioContext.currentTime);
+                dropGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+                
+                dropOsc.connect(dropGain);
+                dropGain.connect(audioContext.destination);
+                
+                dropOsc.start(audioContext.currentTime);
+                dropOsc.stop(audioContext.currentTime + 0.1);
             } catch (e) {}
             
             setTimeout(() => {
@@ -685,10 +737,10 @@
         // Create drips at organic intervals
         function scheduleDrips() {
             createDrip();
-            const nextInterval = 1000 + Math.random() * 1500;
+            const nextInterval = 1200 + Math.random() * 1800;
             setTimeout(scheduleDrips, nextInterval);
         }
-        setTimeout(scheduleDrips, 2000);
+        setTimeout(scheduleDrips, 2500);
 
         // Create falling head elements
         function createFallingElement() {
