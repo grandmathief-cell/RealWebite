@@ -3,39 +3,452 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Basic Website</title>
+    <title>JuicyJenkins - Chat with Me</title>
     
-    <!-- A little bit of CSS to make it look nice out of the box -->
     <style>
-        body {
-            font-family: system-ui, -apple-system, sans-serif;
-            margin: 40px auto;
-            max-width: 650px;
-            padding: 0 20px;
-            line-height: 1.6;
-            color: #333;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        h1 {
-            color: #0056b3;
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0a0a url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><defs><filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" result="noise" /></filter></defs><rect width="100" height="100" fill="%23000000" filter="url(%23noise)" opacity="0.05"/></svg>');
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                repeating-linear-gradient(
+                    0deg,
+                    rgba(0, 0, 0, 0.03),
+                    rgba(0, 0, 0, 0.03) 1px,
+                    transparent 1px,
+                    transparent 2px
+                );
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .chat-window {
+            width: 90%;
+            max-width: 500px;
+            height: 85vh;
+            background: linear-gradient(135deg, #1a0f0f 0%, #0d0d0d 50%, #000000 100%);
+            border-radius: 2px;
+            box-shadow: 
+                0 0 40px rgba(255, 20, 147, 0.4),
+                inset 0 0 80px rgba(255, 20, 147, 0.08),
+                0 0 100px rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            border: 3px solid rgba(255, 20, 147, 0.5);
+            position: relative;
+            z-index: 2;
+            background-image: 
+                linear-gradient(135deg, #1a0f0f 0%, #0d0d0d 50%, #000000 100%),
+                url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><defs><filter id="grunge"><feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="6" result="noise" /></filter></defs><rect width="200" height="200" fill="%23ff1493" filter="url(%23grunge)" opacity="0.02"/></svg>');
+            background-size: cover, cover;
+        }
+
+        /* Header */
+        .chat-header {
+            padding: 20px;
+            border-bottom: 3px solid rgba(255, 20, 147, 0.4);
+            text-align: center;
+            background: rgba(0, 0, 0, 0.6);
+            position: relative;
+            box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.8);
+        }
+
+        .chat-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                repeating-linear-gradient(
+                    90deg,
+                    transparent,
+                    transparent 2px,
+                    rgba(255, 20, 147, 0.03) 2px,
+                    rgba(255, 20, 147, 0.03) 4px
+                );
+            pointer-events: none;
+        }
+
+        .chat-header h1 {
+            font-size: 28px;
+            color: #ff1493;
+            margin-bottom: 5px;
+            font-weight: bold;
+            letter-spacing: 3px;
+            text-shadow: 
+                0 0 10px rgba(255, 20, 147, 0.8),
+                0 0 20px rgba(255, 20, 147, 0.4),
+                2px 2px 0 rgba(0, 0, 0, 0.8);
+            font-family: 'Arial Black', sans-serif;
+            position: relative;
+            z-index: 1;
+        }
+
+        .chat-header p {
+            font-size: 11px;
+            color: #ff1493;
+            opacity: 0.9;
+            font-style: italic;
+            letter-spacing: 2px;
+            position: relative;
+            z-index: 1;
+            text-shadow: 0 0 5px rgba(255, 20, 147, 0.5);
+        }
+
+        /* Messages Area */
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            background: rgba(0, 0, 0, 0.4);
+            position: relative;
+        }
+
+        .messages::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                repeating-linear-gradient(
+                    0deg,
+                    rgba(0, 0, 0, 0.05),
+                    rgba(0, 0, 0, 0.05) 1px,
+                    transparent 1px,
+                    transparent 2px
+                );
+            pointer-events: none;
+        }
+
+        .message {
+            display: flex;
+            gap: 8px;
+            animation: slideIn 0.3s ease-out;
+            position: relative;
+            z-index: 1;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 1px;
+            word-wrap: break-word;
+            font-size: 13px;
+            line-height: 1.5;
+            letter-spacing: 0.5px;
+        }
+
+        .message.bot .message-content {
+            background: rgba(255, 20, 147, 0.1);
+            color: #ff1493;
+            border: 2px solid rgba(255, 20, 147, 0.5);
+            border-radius: 0;
+            box-shadow: 
+                0 0 15px rgba(255, 20, 147, 0.3),
+                inset 0 0 10px rgba(0, 0, 0, 0.8);
+            text-shadow: 0 0 5px rgba(255, 20, 147, 0.3);
+        }
+
+        .message.user .message-content {
+            background: rgba(255, 20, 147, 0.2);
+            color: #ff69b4;
+            border: 2px solid rgba(255, 20, 147, 0.6);
+            border-radius: 0;
+            box-shadow: 
+                0 0 20px rgba(255, 20, 147, 0.5),
+                inset 0 0 10px rgba(0, 0, 0, 0.6);
+            text-shadow: 0 0 5px rgba(255, 20, 147, 0.4);
+        }
+
+        /* Input Area */
+        .input-area {
+            padding: 15px 20px;
+            border-top: 3px solid rgba(255, 20, 147, 0.4);
+            background: rgba(0, 0, 0, 0.6);
+            position: relative;
+            box-shadow: inset 0 -2px 10px rgba(0, 0, 0, 0.8);
+        }
+
+        .input-wrapper {
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+            position: relative;
+            z-index: 1;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 11px 16px;
+            background: rgba(255, 20, 147, 0.08);
+            border: 2px solid rgba(255, 20, 147, 0.4);
+            border-radius: 0;
+            font-size: 13px;
+            color: #ff1493;
+            outline: none;
+            transition: all 0.2s;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 1px;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.8);
+        }
+
+        input[type="text"]::placeholder {
+            color: rgba(255, 20, 147, 0.4);
+        }
+
+        input[type="text"]:focus {
+            border-color: #ff1493;
+            background: rgba(255, 20, 147, 0.12);
+            box-shadow: 
+                inset 0 0 10px rgba(0, 0, 0, 0.8),
+                0 0 15px rgba(255, 20, 147, 0.5);
+            text-shadow: 0 0 5px rgba(255, 20, 147, 0.3);
+        }
+
+        .send-btn {
+            background: rgba(255, 20, 147, 0.3);
+            color: #ff1493;
+            border: 2px solid rgba(255, 20, 147, 0.6);
+            width: 36px;
+            height: 36px;
+            border-radius: 0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            font-size: 16px;
+            box-shadow: 
+                0 0 15px rgba(255, 20, 147, 0.4),
+                inset 0 0 10px rgba(0, 0, 0, 0.6);
+        }
+
+        .send-btn:hover {
+            background: rgba(255, 20, 147, 0.4);
+            box-shadow: 
+                0 0 25px rgba(255, 20, 147, 0.6),
+                inset 0 0 10px rgba(0, 0, 0, 0.6);
+        }
+
+        .send-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* Scrollbar styling */
+        .messages::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .messages::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        .messages::-webkit-scrollbar-thumb {
+            background: rgba(255, 20, 147, 0.3);
+            border: 1px solid rgba(255, 20, 147, 0.5);
+        }
+
+        .messages::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 20, 147, 0.5);
+        }
+
+        /* Responsive */
+        @media (max-width: 480px) {
+            .chat-window {
+                width: 95%;
+                height: 90vh;
+            }
+
+            .message-content {
+                max-width: 85%;
+            }
+
+            .chat-header h1 {
+                font-size: 24px;
+            }
         }
     </style>
 </head>
 <body>
 
-    <header>
-        <h1>Welcome to My Website</h1>
-    </header>
+    <div class="chat-window">
+        <!-- Header -->
+        <div class="chat-header">
+            <h1>💋 JuicyJenkins</h1>
+            <p>Let's chat...</p>
+        </div>
 
-    <main>
-        <p>Hello, world! This is a basic HTML template. You can use it as a foundation to build your own web pages.</p>
-        
-        <h2>Features of this template:</h2>
-        <ul>
-            <li><strong>Responsive:</strong> It adapts to mobile screens automatically.</li>
-            <li><strong>Clean formatting:</strong> The content is centered and easy to read.</li>
-            <li><strong>Modern standards:</strong> It uses the latest HTML5 structure.</li>
-        </ul>
-    </main>
+        <!-- Messages -->
+        <div class="messages">
+            <div class="message bot">
+                <div class="message-avatar">😉</div>
+                <div class="message-content">
+                    Hey there... I'm JuicyJenkins. Glad you stopped by. What's on your mind? 💕
+                </div>
+            </div>
+
+            <div class="message user">
+                <div class="message-content">
+                    Hi! This is interesting 😊
+                </div>
+                <div class="message-avatar">😊</div>
+            </div>
+
+            <div class="message bot">
+                <div class="message-avatar">😉</div>
+                <div class="message-content">
+                    I like interesting people... Tell me more. I'm all ears 👂
+                </div>
+            </div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="input-area">
+            <div class="input-wrapper">
+                <input type="text" id="messageInput" placeholder="Type something...">
+                <button class="send-btn" id="sendBtn">→</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const messagesContainer = document.querySelector('.messages');
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+
+        // Personalized, flirty bot responses
+        const botResponses = [
+            "Mmm, tell me more... I'm curious 👀",
+            "I like where this is going... 😉",
+            "You've got my attention 💕",
+            "That's exactly what I wanted to hear...",
+            "Keep going... I'm listening 👂",
+            "You know just what to say... 😏",
+            "Interesting... I like that about you",
+            "That's hot... I mean, really interesting! 🔥",
+            "You're fun. I like fun people.",
+            "Don't stop... I'm enjoying this 😘",
+        ];
+
+        function addMessage(text, isUser) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
+
+            const avatar = document.createElement('div');
+            avatar.className = `message-avatar`;
+            avatar.textContent = isUser ? '😊' : '😉';
+
+            const content = document.createElement('div');
+            content.className = 'message-content';
+            content.textContent = text;
+
+            if (isUser) {
+                messageDiv.appendChild(content);
+                messageDiv.appendChild(avatar);
+            } else {
+                messageDiv.appendChild(avatar);
+                messageDiv.appendChild(content);
+            }
+
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function getBotResponse(userMessage) {
+            const lowerMsg = userMessage.toLowerCase();
+
+            // Personalized responses
+            if (lowerMsg.includes('hi') || lowerMsg.includes('hello') || lowerMsg.includes('hey')) {
+                return "Hey yourself... I was hoping you'd show up 😉";
+            } else if (lowerMsg.includes('how are you')) {
+                return "I'm better now that you're here... How about you? 💕";
+            } else if (lowerMsg.includes('what can you do')) {
+                return "Oh, I can do lots of things... Let's start with chatting though 😏";
+            } else if (lowerMsg.includes('?')) {
+                return "Ooh, questions... I like mysterious people. What else do you want to know? 👀";
+            } else {
+                return botResponses[Math.floor(Math.random() * botResponses.length)];
+            }
+        }
+
+        function sendMessage() {
+            const userMessage = messageInput.value.trim();
+
+            if (userMessage === '') return;
+
+            addMessage(userMessage, true);
+            messageInput.value = '';
+            messageInput.focus();
+
+            setTimeout(() => {
+                const botResponse = getBotResponse(userMessage);
+                addMessage(botResponse, false);
+            }, 400);
+        }
+
+        sendBtn.addEventListener('click', sendMessage);
+
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        messageInput.focus();
+    </script>
 
 </body>
 </html>
