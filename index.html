@@ -128,17 +128,19 @@
             );
         }
 
-        /* Drip that falls */
+        /* Smooth glossy water drops */
         .falling-drip {
             position: fixed;
-            width: 18px;
-            height: 24px;
-            background: radial-gradient(ellipse at 35% 35%, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.9) 60%, rgba(255, 255, 255, 0.7) 100%);
-            border-radius: 50% 50% 50% 0;
+            width: 20px;
+            height: 26px;
+            background: 
+                radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.8) 30%, rgba(255, 255, 255, 0.5) 100%);
+            border-radius: 50% 50% 50% 35%;
             transform: rotate(-45deg);
             z-index: 2;
-            filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.6));
+            filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.7)) drop-shadow(0 1px 2px rgba(255, 255, 255, 0.4));
             animation: dropFall cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+            box-shadow: inset -2px -2px 4px rgba(0, 0, 0, 0.2);
         }
 
         @keyframes dropFall {
@@ -146,8 +148,11 @@
                 transform: rotate(-45deg) translateY(0) scale(1);
                 opacity: 1;
             }
+            85% {
+                opacity: 1;
+            }
             100% {
-                transform: rotate(-45deg) translateY(200px) scale(0.8);
+                transform: rotate(-45deg) translateY(180px) scale(0.9);
                 opacity: 0;
             }
         }
@@ -437,8 +442,8 @@
     </style>
 </head>
 <body>
-    <!-- Background music -->
-    <audio id="bgMusic" loop volume="0.3">
+    <!-- Background intimate music -->
+    <audio id="bgMusic" loop preload="auto">
         <source src="https://assets.mixkit.co/active_storage/sfx/2445/2445-preview.mp3" type="audio/mpeg">
     </audio>
 
@@ -585,31 +590,68 @@
         const chatWindow = document.querySelector('.chat-window');
         const fallingContainer = document.getElementById('fallingContainer');
 
-        // Start background music on user interaction
-        document.addEventListener('click', () => {
-            if (bgMusic.paused) {
-                bgMusic.volume = 0.2;
-                bgMusic.play().catch(() => {
-                    console.log('Audio autoplay blocked');
+        // Initialize and start background music immediately
+        function startMusic() {
+            bgMusic.volume = 0.25;
+            bgMusic.currentTime = 0;
+            const playPromise = bgMusic.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    console.log('Music autoplay failed, will retry on interaction');
                 });
             }
-        }, { once: true });
+        }
 
-        // Always try to play music
-        bgMusic.volume = 0.2;
-        bgMusic.play().catch(() => {});
+        // Start music on page load
+        setTimeout(startMusic, 500);
 
-        // Create drips that physically fall from splatters
+        // Also start on user interaction as fallback
+        const startMusicOnInteraction = () => {
+            if (bgMusic.paused) {
+                startMusic();
+            }
+            document.removeEventListener('click', startMusicOnInteraction);
+            document.removeEventListener('keypress', startMusicOnInteraction);
+        };
+
+        document.addEventListener('click', startMusicOnInteraction);
+        document.addEventListener('keypress', startMusicOnInteraction);
+
+        // Monitor music and restart if it stops
+        setInterval(() => {
+            if (bgMusic.paused && document.hasFocus()) {
+                bgMusic.play().catch(() => {});
+            }
+        }, 3000);
+
+        // Create realistic water drops
         function createDrip() {
             const drip = document.createElement('div');
             drip.className = 'falling-drip';
             
             const chatRect = chatWindow.getBoundingClientRect();
+            
             const edges = [
-                { name: 'top', x: () => chatRect.left + 50 + Math.random() * (chatRect.width - 100), y: () => chatRect.top - 30 },
-                { name: 'left', x: () => chatRect.left - 30, y: () => chatRect.top + 40 + Math.random() * (chatRect.height - 80) },
-                { name: 'right', x: () => chatRect.right + 10, y: () => chatRect.top + 40 + Math.random() * (chatRect.height - 80) },
-                { name: 'bottom', x: () => chatRect.left + 50 + Math.random() * (chatRect.width - 100), y: () => chatRect.bottom + 10 }
+                { 
+                    name: 'top', 
+                    x: () => chatRect.left + 60 + Math.random() * (chatRect.width - 120), 
+                    y: () => chatRect.top - 35 
+                },
+                { 
+                    name: 'left', 
+                    x: () => chatRect.left - 35, 
+                    y: () => chatRect.top + 60 + Math.random() * (chatRect.height - 120) 
+                },
+                { 
+                    name: 'right', 
+                    x: () => chatRect.right + 15, 
+                    y: () => chatRect.top + 60 + Math.random() * (chatRect.height - 120) 
+                },
+                { 
+                    name: 'bottom', 
+                    x: () => chatRect.left + 60 + Math.random() * (chatRect.width - 120), 
+                    y: () => chatRect.bottom + 15 
+                }
             ];
             
             const edge = edges[Math.floor(Math.random() * edges.length)];
@@ -619,17 +661,20 @@
             drip.style.left = x + 'px';
             drip.style.top = y + 'px';
             
-            const duration = 1.2 + Math.random() * 0.5;
+            const duration = 1.0 + Math.random() * 0.6;
             drip.style.animationDuration = duration + 's';
             
             fallingContainer.appendChild(drip);
             
-            // Play drip sound when drop falls
+            // Play drip sound when drop starts falling
             try {
-                const audioClone = dripSound.cloneNode();
-                audioClone.volume = 0.5;
-                audioClone.currentTime = 0;
-                audioClone.play().catch(() => {});
+                const soundClone = dripSound.cloneNode();
+                soundClone.volume = 0.6;
+                soundClone.currentTime = 0;
+                const playPromise = soundClone.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(() => {});
+                }
             } catch (e) {}
             
             setTimeout(() => {
@@ -637,12 +682,13 @@
             }, duration * 1000);
         }
 
-        // Create drips at random intervals for organic feel
+        // Create drips at organic intervals
         function scheduleDrips() {
             createDrip();
-            setTimeout(scheduleDrips, 800 + Math.random() * 1200);
+            const nextInterval = 1000 + Math.random() * 1500;
+            setTimeout(scheduleDrips, nextInterval);
         }
-        scheduleDrips();
+        setTimeout(scheduleDrips, 2000);
 
         // Create falling head elements
         function createFallingElement() {
@@ -658,7 +704,6 @@
             
             const duration = 4 + Math.random() * 6;
             element.style.animationDuration = duration + 's';
-            
             element.style.animationDelay = Math.random() * 3 + 's';
             
             fallingContainer.appendChild(element);
